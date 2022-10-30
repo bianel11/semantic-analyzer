@@ -47,8 +47,15 @@ table {
 .mt-10 {
   margin-top: 10px;
 }
-.flex {
-  display: flex;
+.items-center {
   align-items: center;
+}
+
+.justify-center {
   justify-content: center;
 }
+
+.flex {
+  display: flex;
+}
+

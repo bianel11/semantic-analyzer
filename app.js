@@ -5,7 +5,8 @@ let result = [];
 let errorList = [];
 const table = document.getElementById("table");
 const tableSyntax = document.getElementById("table-syntax");
-
+const tableSemantic = document.getElementById("table-semantic")
+;
 document.querySelector("#submmit").addEventListener("click", analize);
 
 function resetAll() {
@@ -29,6 +30,14 @@ function resetAll() {
                 </thead>
                 <tbody id="table-body">
                 </tbody>`;
+tableSemantic.innerHTML = `<thead class="animate__animated animate__fadeInUp">
+                <tr>
+                <th>Mensaje</th>
+                <th>#</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+            </tbody>`;
 }
 
 // Lexical analyzer
@@ -68,6 +77,13 @@ function analize() {
         text: text,
         type: "Comparación/igualación",
       });
+    }
+    // Comprobamos si es una declaracion de funcion
+    else if(words.functions.includes(text)) {
+      result.push({
+        text,
+        type: "Función"
+      })
     }
 
     // Comprobamos si es una declaracion
@@ -112,7 +128,7 @@ function analize() {
               } else {
                 result.push({
                   text: sub,
-                  type: "Identificador",
+                  type: Array.from(sub).includes('"') ? "String" : "Identificador",
                 });
               }
             }
@@ -135,7 +151,6 @@ function analize() {
       }
     }
   }
-  console.log(result);
   // Recoremos el resultado y lo agregamos en la tabla
   result.forEach((word, i) => {
     const row = document.createElement("tr");
@@ -176,8 +191,8 @@ function parse(result) {
         break;
       case "Comparación/igualación":
         if (
-          !["Identificador", "Número"].includes(result[pos + 1]?.type) ||
-          !["Identificador", "Número"].includes(result[pos - 1]?.type)
+          !["Identificador", "Número", "String"].includes(result[pos + 1]?.type) ||
+          !["Identificador", "Número", "String"].includes(result[pos - 1]?.type)
         ) {
           errorList.push({
             message: "Se esperaba un identificador o un número",
@@ -185,13 +200,14 @@ function parse(result) {
           });
         }
         break;
-      case "Reservada":
-        if (result[pos + 1]?.type !== "ParentesisIq") {
+      case "Función":
+        if (result[pos + 1]?.type !== "Identificador") {
           errorList.push({
-            message: "Se esperaba un parentesis de apertura",
+            message: "Se esperaba un indentificador en la declaracion de la funcion",
             pos: pos + 1,
           });
         }
+        break;
       case "Fin linea":
         if (result[pos - 1]?.type === "Fin linea") {
           errorList.push({
@@ -241,6 +257,76 @@ function parse(result) {
       row.appendChild(pos);
       row.appendChild(number);
       tableSyntax.appendChild(row);
+    });
+  }
+  scopeMapping(result)
+}
+// Scope mapping
+function scopeMapping(result) {
+  let scope = '';
+  result.map((element, pos) => {
+    if(!element.scope) {
+      element.scope = scope || 'GLOBAL';
+    }
+    if(element.type === "LlaveIzq"){
+      let saltos = 0;
+      scope = (Math.random() + 1).toString(36).substring(7);
+      element.scope = scope;
+      for (let index = pos + 1; index < result.length; index++) {
+        result[index].scope = scope;
+        if(result[index].type === "LlaveIzq") {
+          saltos++;
+        }
+        
+        else if(result[index].type === "LlaveDer" && saltos > 0) {
+          saltos--;
+        }
+
+        else if(result[index].type === "LlaveDer" && saltos === 0) {
+          scope = "";
+          break;
+        }
+      }
+    }
+  })
+  semanticAnalizer(result)
+}
+
+// Semantic analizer
+function semanticAnalizer(result) {
+  const errorList = [];
+  console.log(result)
+  const items = {};
+  result.filter(x => x.type === 'Identificador').forEach(x => {
+    const scope = items[x.scope] || {};
+    if(scope[x.text]) {
+      errorList.push(
+        `Error ${x.text} está siendo redeclarada en el mismo scope`
+      );
+    }else {
+      items[x.scope] = {
+        ...items[x.scope],
+        [x.text]: x.text
+      }
+    }
+  });
+  document.getElementById('errorCountSemantic').innerText = errorList.length;
+  if(errorList.length) {
+    errorList.forEach((word, i) => {
+      const row = document.createElement("tr");
+      const msg = document.createElement("td");
+      const number = document.createElement("td");
+  
+      msg.classList.add("animate__animated");
+      msg.classList.add("animate__fadeInUp");
+      number.classList.add("animate__animated");
+      number.classList.add("animate__fadeInUp");
+  
+      msg.innerText = word;
+      number.innerText = i + 1; 
+      row.appendChild(msg);
+      row.appendChild(number);
+      tableSemantic.appendChild(row);
     });
   }
 }
