@@ -264,6 +264,7 @@ function parse(result) {
 // Scope mapping
 function scopeMapping(result) {
   let scope = '';
+  let scopesList = [];
   result.map((element, pos) => {
     if(!element.scope) {
       element.scope = scope || 'GLOBAL';
@@ -272,9 +273,11 @@ function scopeMapping(result) {
       let saltos = 0;
       scope = (Math.random() + 1).toString(36).substring(7);
       element.scope = scope;
+      scopesList.push(scope)
       for (let index = pos + 1; index < result.length; index++) {
         result[index].scope = scope;
         result[index].profundidad = result[index].profundidad || saltos;
+        result[index].papa =  result[index].type === "LlaveIzq"  ?  scopesList[result[index].profundidad] : scopesList[result[index].profundidad - 1]  || "GLOBAL";
         if(result[index].type === "LlaveIzq") {
           saltos++;
         }
@@ -284,13 +287,32 @@ function scopeMapping(result) {
         }
 
         else if(result[index].type === "LlaveDer" && saltos === 0) {
-          scope = "";
+          scope = ""; 
           break;
         }
       }
     }
   })
+   
   semanticAnalizer(result)
+}
+
+function buscarVariableScope(nombre =  '', scope = '', result = []) {
+  const exits  = result.find(x => x.scope === scope && x.text === nombre && x.type === 'Identificador');
+  const variables = result.filter(x => x.scope === scope && x.type === 'Identificador');
+  const hasPapa = variables[0].papa;
+
+  if(exits) {
+    return true;
+  }
+
+  else if(hasPapa) {
+    return buscarVariableScope(nombre, hasPapa, result)
+  }
+
+  else {
+    return false;
+  }
 }
 
 // Semantic analizer
@@ -298,6 +320,8 @@ function semanticAnalizer(result) {
   const errorList = [];
   console.table(result)
   const items = {};
+  
+  // Buscar redeclaraciones
   result.filter(x => x.type === 'Identificador').forEach(x => {
     const scope = items[x.scope] || {};
     if(scope[x.text]) {
@@ -311,6 +335,34 @@ function semanticAnalizer(result) {
       }
     }
   });
+
+
+  // Buscar declaracioens anteriores
+  result.forEach((element, pos) => {
+    if(result[pos - 1]?.type === "Comparación/igualación" && result[pos].type === "Identificador" && isNaN( result[pos].text)) {
+      const variablesDelScope = result.filter(el => el.scope === element.scope && el.type === "Identificador") 
+      const posicionActual = variablesDelScope.findIndex(x => x.text === element.text);
+      const variablesAnterioresDelScope = variablesDelScope.slice(0, posicionActual - 1);
+      
+      if(variablesAnterioresDelScope.find(x => x.text === element.text)) {
+        return;
+      } 
+      else if(element.papa) {
+
+       if(!buscarVariableScope(element.text, element.papa, result)){
+        errorList.push(
+          `Error ${element.text} está está declarada`
+        );
+       };
+      }
+      else { 
+      errorList.push(
+        `Error ${element.text} está está declarada`
+      );
+      }
+    }
+  });  
+
   document.getElementById('errorCountSemantic').innerText = errorList.length;
   if(errorList.length) {
     errorList.forEach((word, i) => {
