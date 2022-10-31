@@ -351,13 +351,13 @@ function semanticAnalizer(result) {
 
        if(!buscarVariableScope(element.text, element.papa, result)){
         errorList.push(
-          `Error ${element.text} está no está declarada`
+          `Error ${element.text} no está declarada`
         );
        };
       }
       else { 
       errorList.push(
-        `Error ${element.text} está no está declarada`
+        `Error ${element.text} no está declarada`
       );
       }
     }
