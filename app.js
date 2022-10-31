@@ -274,6 +274,7 @@ function scopeMapping(result) {
       element.scope = scope;
       for (let index = pos + 1; index < result.length; index++) {
         result[index].scope = scope;
+        result[index].profundidad = result[index].profundidad || saltos;
         if(result[index].type === "LlaveIzq") {
           saltos++;
         }
@@ -295,7 +296,7 @@ function scopeMapping(result) {
 // Semantic analizer
 function semanticAnalizer(result) {
   const errorList = [];
-  console.log(result)
+  console.table(result)
   const items = {};
   result.filter(x => x.type === 'Identificador').forEach(x => {
     const scope = items[x.scope] || {};
